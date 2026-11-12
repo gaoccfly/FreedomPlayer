@@ -46,7 +46,8 @@ struct PlayerScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
             VideoPlayerLayer(player: player.player).ignoresSafeArea()
-            if player.isBuffering && player.errorMessage == nil {
+            if (player.isBuffering || player.seekTarget != nil) && player.errorMessage == nil {
+                // 起播缓冲或 seek 缓冲（含暂停状态下拖动进度条）时显示转圈
                 ProgressView().scaleEffect(1.3).tint(.white)
             }
             CueOverlay()
