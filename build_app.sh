@@ -28,6 +28,11 @@ iconutil -c icns "$TMP/AppIcon.iconset" -o "$APP/Contents/Resources/AppIcon.icns
 
 echo "==> 组装 .app"
 cp .build/release/FreedomPlayer "$APP/Contents/MacOS/FreedomPlayer"
+
+# 打赏收款码（侧边栏「请作者喝杯咖啡」弹窗使用）
+if [ -f docs/screenshots/donate.jpg ]; then
+    cp docs/screenshots/donate.jpg "$APP/Contents/Resources/donate.jpg"
+fi
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -118,8 +123,17 @@ README
 
 echo "==> 打 zip"
 mkdir -p build/dist
-rm -f build/dist/*.zip
+rm -f build/dist/*.zip build/dist/*.dmg
 (cd build && zip -qry "dist/FreedomPlayer-${VERSION}-macOS-arm64.zip" "FreedomPlayer.app" "安装说明.txt")
+
+echo "==> 打 DMG 安装镜像（打开后拖入「应用程序」即可）"
+DMG_STAGE=$(mktemp -d)
+cp -R "$APP" "$DMG_STAGE/"
+ln -s /Applications "$DMG_STAGE/Applications"
+hdiutil create -volname "FreedomPlayer" \
+    -srcfolder "$DMG_STAGE" -ov -format UDZO \
+    -o "build/dist/FreedomPlayer-${VERSION}-macOS-arm64.dmg" >/dev/null
+rm -rf "$DMG_STAGE"
 
 echo "==> 安装到 /Applications"
 if [ -d "/Applications/FreedomPlayer.app" ]; then
@@ -133,4 +147,4 @@ else
 fi
 
 echo "✅ 完成: $PWD/$APP"
-echo "📦 分发包: $PWD/build/dist/FreedomPlayer-${VERSION}-macOS-arm64.zip"
+echo "📦 分发包: $PWD/build/dist/FreedomPlayer-${VERSION}-macOS-arm64.dmg / .zip"

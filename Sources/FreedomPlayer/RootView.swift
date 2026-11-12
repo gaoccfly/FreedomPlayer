@@ -59,6 +59,8 @@ private struct Sidebar: View {
     @EnvironmentObject private var player: PlayerController
     @State private var linksExpanded = true
     @State private var historyExpanded = true
+    @State private var showDonate = false
+    @AppStorage("hasDonated") private var hasDonated = false
 
     var body: some View {
         List(selection: $section) {
@@ -162,8 +164,79 @@ private struct Sidebar: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+
+                // 打赏入口：点「我已打赏」后永久隐藏（本地记录）
+                if !hasDonated {
+                    Button {
+                        showDonate = true
+                    } label: {
+                        Label("请作者喝杯咖啡", systemImage: "cup.and.saucer.fill")
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Theme.textDim)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .help("支持 FreedomPlayer 的持续开发")
+                }
             }
             .padding(12)
+        }
+        .sheet(isPresented: $showDonate) {
+            DonateSheet {
+                hasDonated = true
+            }
+        }
+    }
+}
+
+// MARK: - 打赏弹窗
+
+struct DonateSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var onDonated: () -> Void
+    @State private var image: NSImage?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("请作者喝杯咖啡 ☕")
+                .font(.title3.weight(.semibold))
+                .foregroundColor(.white)
+            Text("如果 FreedomPlayer 帮到了你，欢迎扫码打赏")
+                .font(.callout)
+                .foregroundColor(Theme.textDim)
+
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                Text("收款码图片缺失")
+                    .font(.callout)
+                    .foregroundColor(Theme.textDim)
+                    .frame(width: 320, height: 320)
+            }
+
+            HStack(spacing: 12) {
+                Button("以后再说") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("我已打赏") {
+                    onDonated()
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.accent)
+            }
+        }
+        .padding(24)
+        .frame(width: 400)
+        .background(Theme.panel)
+        .onAppear {
+            if let url = Bundle.main.url(forResource: "donate", withExtension: "jpg"),
+               let img = NSImage(contentsOf: url) {
+                image = img
+            }
         }
     }
 }
