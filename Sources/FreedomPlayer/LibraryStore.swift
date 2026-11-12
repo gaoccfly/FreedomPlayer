@@ -79,10 +79,20 @@ final class LibraryStore: ObservableObject {
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let state = try? JSONDecoder().decode(State.self, from: data) else { return }
+        // 修复旧版粘贴多行文本产生的坏链（URL 中混入换行/空格的 percent-encoding）
         folders = state.folders
-        items = state.items
-        onlineItems = state.onlineItems
-        historyItems = state.history ?? []   // 旧版本 library.json 无此字段
+        items = state.items.filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
+        onlineItems = state.onlineItems.filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
+        historyItems = (state.history ?? []).filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
+        if items.count != state.items.count || onlineItems.count != state.onlineItems.count
+            || historyItems.count != (state.history ?? []).count {
+            save()
+        }
+    }
+
+    /// 正常 URL 不会包含换行转义或连续空格转义
+    private static func hasEncodedWhitespace(_ s: String) -> Bool {
+        s.contains("%0A") || s.contains("%0D") || s.contains("%20%20")
     }
 
     func save() {

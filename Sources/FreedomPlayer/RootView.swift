@@ -716,12 +716,16 @@ struct AddURLSheet: View {
     @State private var text = ""
     @State private var name = ""
 
-    /// 去掉首尾空白并自动补全 https:// 前缀；无效输入返回 nil
+    /// 去掉所有空白并自动补全 https:// 前缀；无效输入返回 nil
     private var normalizedURL: URL? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if let url = URL(string: trimmed), url.scheme != nil { return url }
-        return URL(string: "https://" + trimmed)
+        // 必须去掉中间的空白：从终端/网页复制的长链接常带换行和缩进，
+        // URL(string:) 会把它们 percent-encode 成 %0A/%20，得到损坏的链接
+        let cleaned = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespacesAndNewlines).joined()
+        guard !cleaned.isEmpty else { return nil }
+        if let url = URL(string: cleaned), url.scheme != nil, url.host != nil { return url }
+        return URL(string: "https://" + cleaned).flatMap { $0.host != nil ? $0 : nil }
     }
 
     var body: some View {
