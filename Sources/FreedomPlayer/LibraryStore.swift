@@ -84,7 +84,19 @@ final class LibraryStore: ObservableObject {
         items = state.items.filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
         onlineItems = state.onlineItems.filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
         historyItems = (state.history ?? []).filter { !Self.hasEncodedWhitespace($0.url.absoluteString) }
-        if items.count != state.items.count || onlineItems.count != state.onlineItems.count
+
+        // 修复：历史条目缺名称时从收藏/媒体库的同 URL 条目补齐（旧版历史不带 customName）
+        var repaired = false
+        for i in historyItems.indices where historyItems[i].customName == nil {
+            let url = historyItems[i].url
+            if let source = onlineItems.first(where: { $0.url == url }) ?? items.first(where: { $0.url == url }),
+               let name = source.customName, !name.isEmpty {
+                historyItems[i].customName = name
+                repaired = true
+            }
+        }
+        if repaired
+            || items.count != state.items.count || onlineItems.count != state.onlineItems.count
             || historyItems.count != (state.history ?? []).count {
             save()
         }
@@ -278,6 +290,10 @@ final class LibraryStore: ObservableObject {
         // 记入播放历史（独立于收藏，删除收藏不影响历史）
         if let i = historyItems.firstIndex(where: { $0.url == url }) {
             apply(i, in: &historyItems)
+            // 用户设置了名称而历史条目缺失/不一致时同步（修复旧数据）
+            if let customName, !customName.isEmpty, historyItems[i].customName != customName {
+                historyItems[i].customName = customName
+            }
         } else if let source = items.first(where: { $0.url == url }) ?? onlineItems.first(where: { $0.url == url }) {
             var entry = source
             entry.progress = seconds
