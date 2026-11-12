@@ -3,6 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# 版本号：CI 打 tag（v1.2.3）时取 tag；本地构建默认 1.0.0
+VERSION="${GITHUB_REF_NAME:-v1.0.0}"
+VERSION="${VERSION#v}"
+
 echo "==> 编译 (release)"
 swift build -c release
 
@@ -24,7 +28,7 @@ iconutil -c icns "$TMP/AppIcon.iconset" -o "$APP/Contents/Resources/AppIcon.icns
 
 echo "==> 组装 .app"
 cp .build/release/FreedomPlayer "$APP/Contents/MacOS/FreedomPlayer"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -34,7 +38,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key><string>com.gaochuan.freedomplayer</string>
     <key>CFBundleExecutable</key><string>FreedomPlayer</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
+    <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>NSHighResolutionCapable</key><true/>
@@ -114,8 +118,8 @@ README
 
 echo "==> 打 zip"
 mkdir -p build/dist
-rm -f build/dist/FreedomPlayer.zip
-(cd build && zip -qry dist/FreedomPlayer.zip "FreedomPlayer.app" "安装说明.txt")
+rm -f build/dist/*.zip
+(cd build && zip -qry "dist/FreedomPlayer-${VERSION}-macOS-arm64.zip" "FreedomPlayer.app" "安装说明.txt")
 
 echo "==> 安装到 /Applications"
 if [ -d "/Applications/FreedomPlayer.app" ]; then
@@ -129,4 +133,4 @@ else
 fi
 
 echo "✅ 完成: $PWD/$APP"
-echo "📦 分发包: $PWD/build/dist/FreedomPlayer.zip"
+echo "📦 分发包: $PWD/build/dist/FreedomPlayer-${VERSION}-macOS-arm64.zip"
