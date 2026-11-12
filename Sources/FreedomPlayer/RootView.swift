@@ -97,12 +97,12 @@ private struct Sidebar: View {
             }
 
             Section("在线") {
-                // 标题行：点三角只折叠/展开（不触发选中跳页），点标题才进列表页
-                // 子项是独立的 List 行（不带 tag），点击子项只播放、不会整块选中变蓝
+                // 标题行不挂 tag（不走 List 选中，避免整行变蓝且按钮点击被选中手势吞掉）：
+                // 点三角只折叠/展开，点标题直接改 section 跳页，与媒体库文件夹行同款机制
                 OnlineSectionRow(title: "收藏链接", systemImage: "star.fill",
                                  expanded: $linksExpanded,
-                                 itemCount: store.onlineItems.count)
-                    .tag(LibrarySection.onlineLinks)
+                                 itemCount: store.onlineItems.count,
+                                 action: { section = .onlineLinks })
                 if linksExpanded {
                     if store.onlineItems.isEmpty {
                         Text("暂无收藏")
@@ -122,8 +122,8 @@ private struct Sidebar: View {
                 OnlineSectionRow(title: "播放记录", systemImage: "clock.arrow.circlepath",
                                  expanded: $historyExpanded,
                                  itemCount: store.historyItems.count,
-                                 clearHistoryAction: { store.clearHistory() })
-                    .tag(LibrarySection.onlineHistory)
+                                 clearHistoryAction: { store.clearHistory() },
+                                 action: { section = .onlineHistory })
                 if historyExpanded {
                     if store.historyItems.isEmpty {
                         Text("暂无记录")
@@ -176,6 +176,7 @@ private struct OnlineSectionRow: View {
     @Binding var expanded: Bool
     let itemCount: Int
     var clearHistoryAction: (() -> Void)? = nil
+    let action: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -189,12 +190,17 @@ private struct OnlineSectionRow: View {
             }
             .buttonStyle(.plain)
 
-            Label(title, systemImage: systemImage)
-                .contextMenu {
-                    if let clearHistoryAction {
-                        Button("清空播放记录", role: .destructive) { clearHistoryAction() }
-                    }
+            Button {
+                action()
+            } label: {
+                Label(title, systemImage: systemImage)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                if let clearHistoryAction {
+                    Button("清空播放记录", role: .destructive) { clearHistoryAction() }
                 }
+            }
 
             Spacer()
 
@@ -205,7 +211,6 @@ private struct OnlineSectionRow: View {
             }
         }
         .padding(.vertical, 3)
-        .contentShape(Rectangle())
     }
 }
 
