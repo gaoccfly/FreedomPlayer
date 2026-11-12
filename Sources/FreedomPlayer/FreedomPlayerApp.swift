@@ -39,6 +39,11 @@ struct FreedomPlayerApp: App {
                 .keyboardShortcut("o", modifiers: [.command, .shift])
             }
         }
+
+        Settings {
+            SettingsView()
+                .preferredColorScheme(.dark)
+        }
     }
 }
 

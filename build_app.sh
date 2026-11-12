@@ -140,7 +140,8 @@ if [ -d "/Applications/FreedomPlayer.app" ]; then
     pkill -x FreedomPlayer 2>/dev/null || true
     rm -rf "/Applications/FreedomPlayer.app"
     cp -R "$APP" /Applications/
-    open "/Applications/FreedomPlayer.app"
+    sleep 1   # 等 LaunchServices 释放旧进程，避免 open 报 -600
+    open "/Applications/FreedomPlayer.app" || open -a "/Applications/FreedomPlayer.app" || true
     echo "✅ 已更新 /Applications/FreedomPlayer.app 并启动"
 else
     echo "ℹ️  /Applications 里还没有安装过，请手动把 $APP 拖入应用程序文件夹"

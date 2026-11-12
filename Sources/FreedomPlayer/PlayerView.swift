@@ -5,6 +5,7 @@ import SwiftUI
 
 struct VideoPlayerLayer: NSViewRepresentable {
     let player: AVPlayer
+    var onLayerReady: ((AVPlayerLayer) -> Void)? = nil
 
     final class HostView: NSView {
         let playerLayer = AVPlayerLayer()
@@ -26,7 +27,10 @@ struct VideoPlayerLayer: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> HostView {
-        HostView(player: player)
+        let view = HostView(player: player)
+        // 异步登记，避免在视图更新期间修改 @Published 状态
+        Task { @MainActor in onLayerReady?(view.playerLayer) }
+        return view
     }
 
     func updateNSView(_ nsView: HostView, context: Context) {
@@ -45,7 +49,10 @@ struct PlayerScreen: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VideoPlayerLayer(player: player.player).ignoresSafeArea()
+            VideoPlayerLayer(player: player.player) { layer in
+                player.attachPlayerLayer(layer)
+            }
+            .ignoresSafeArea()
             if (player.isBuffering || player.seekTarget != nil) && player.errorMessage == nil {
                 // 起播缓冲或 seek 缓冲（含暂停状态下拖动进度条）时显示转圈
                 ProgressView().scaleEffect(1.3).tint(.white)
@@ -129,13 +136,14 @@ private struct OSDOverlay: View {
 
 private struct CueOverlay: View {
     @EnvironmentObject private var player: PlayerController
+    @AppStorage("subtitleFontSize") private var subtitleFontSize = 22.0
 
     var body: some View {
         VStack {
             Spacer()
             if let cue = player.currentCue {
                 Text(cue.text)
-                    .font(.system(size: 22, weight: .medium))
+                    .font(.system(size: subtitleFontSize, weight: .medium))
                     .multilineTextAlignment(.center)
                     .foregroundColor(.white)
                     .padding(.horizontal, 18)
@@ -252,6 +260,13 @@ private struct ControlsOverlay: View {
 
     private var controlButtons: some View {
         HStack(spacing: 22) {
+            if player.hasPrevious {
+                Button {
+                    player.playPrevious()
+                } label: { Image(systemName: "backward.end.fill").controlIcon() }
+                    .buttonStyle(.plain).help("上一个")
+            }
+
             Button {
                 player.skip(-10)
             } label: { Image(systemName: "gobackward.10").controlIcon() }
@@ -274,6 +289,13 @@ private struct ControlsOverlay: View {
             } label: { Image(systemName: "goforward.10").controlIcon() }
                 .buttonStyle(.plain).help("前进 10 秒 (→)")
 
+            if player.hasNext {
+                Button {
+                    player.playNext()
+                } label: { Image(systemName: "forward.end.fill").controlIcon() }
+                    .buttonStyle(.plain).help("下一个")
+            }
+
             volumeControl
 
             speedMenu
@@ -295,6 +317,16 @@ private struct ControlsOverlay: View {
                 .help(store.isFavorite(url: current.url) ? "取消收藏" : "收藏到「收藏链接」")
             }
 
+            if player.isPiPSupported {
+                Button {
+                    player.togglePiP()
+                } label: {
+                    Image(systemName: player.isPiPActive ? "pip.exit" : "pip.enter").controlIcon()
+                }
+                .buttonStyle(.plain)
+                .help("画中画")
+            }
+
             Button {
                 player.toggleFullscreen()
             } label: { Image(systemName: "arrow.up.left.and.arrow.down.right").controlIcon() }
@@ -311,6 +343,7 @@ private struct ControlsOverlay: View {
                 .frame(width: 90)
                 .tint(.white)
         }
+        .help("音量")
     }
 
     private var speedMenu: some View {
@@ -429,6 +462,7 @@ private struct SeekSlider: View {
     @EnvironmentObject private var player: PlayerController
     @State private var dragging = false
     @State private var dragValue: Double = 0
+    @State private var hoverX: CGFloat? = nil
 
     /// 拖动中显示拖动位置；seek 缓冲未完成前停在目标位置，完成后跟随真实时间
     private var value: Double { dragging ? dragValue : (player.seekTarget ?? player.currentTime) }
@@ -446,6 +480,19 @@ private struct SeekSlider: View {
                     .shadow(color: .black.opacity(0.4), radius: 3)
                     .frame(width: dragging ? 15 : 0, height: dragging ? 15 : 0)
                     .offset(x: max(0, width * fraction) - 7.5)
+
+                // 悬停时间预览
+                if let hx = hoverX, !dragging, player.duration > 0, width > 0 {
+                    let previewTime = min(max(Double(hx / width), 0), 1) * player.duration
+                    Text(timeString(previewTime))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 5))
+                        .offset(x: min(max(hx - 26, 0), max(width - 52, 0)), y: -24)
+                        .allowsHitTesting(false)
+                }
             }
             .frame(height: 22)
             .contentShape(Rectangle())
@@ -461,8 +508,17 @@ private struct SeekSlider: View {
                         dragging = false
                     }
             )
-            .onHover { _ in player.bumpInteraction() }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let point):
+                    hoverX = min(max(point.x, 0), width)
+                    player.bumpInteraction()
+                case .ended:
+                    hoverX = nil
+                }
+            }
         }
         .frame(height: 22)
+        .help("拖动调整进度")
     }
 }

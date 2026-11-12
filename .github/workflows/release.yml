@@ -11,9 +11,12 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-14
+    runs-on: macos-latest   # 需要较新的 Xcode 提供 Swift Testing（macOS 14 镜像默认版本过旧）
     steps:
       - uses: actions/checkout@v4
+
+      - name: Toolchain info
+        run: swift --version && xcodebuild -version
 
       - name: Run tests
         run: swift test

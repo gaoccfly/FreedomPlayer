@@ -113,7 +113,7 @@ private struct Sidebar: View {
                             .padding(.leading, 24)
                     } else {
                         ForEach(store.onlineItems) { item in
-                            VideoTreeRow(item: item)
+                            VideoTreeRow(item: item, queue: store.onlineItems)
                                 .contextMenu {
                                     Button("从收藏中移除", role: .destructive) { store.removeOnline(item) }
                                 }
@@ -134,7 +134,7 @@ private struct Sidebar: View {
                             .padding(.leading, 24)
                     } else {
                         ForEach(store.historyItems) { item in
-                            VideoTreeRow(item: item)
+                            VideoTreeRow(item: item, queue: store.historyItems)
                                 .contextMenu {
                                     Button("删除记录", role: .destructive) { store.removeHistory(item) }
                                 }
@@ -156,6 +156,7 @@ private struct Sidebar: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Theme.accent)
+                .help("粘贴 MP4 直链或 m3u8 链接播放网络视频")
 
                 Button {
                     store.addFolder()
@@ -164,6 +165,7 @@ private struct Sidebar: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .help("选择本地视频文件夹加入媒体库")
 
                 // 打赏入口：点「我已打赏」后永久隐藏（本地记录）
                 if !hasDonated {
@@ -305,7 +307,7 @@ private struct FolderTreeRow: View {
                     FolderTreeRow(path: dir)
                 }
                 ForEach(videos) { item in
-                    VideoTreeRow(item: item)
+                    VideoTreeRow(item: item, queue: videos)
                 }
             } label: {
                 Label((path as NSString).lastPathComponent, systemImage: "folder.fill")
@@ -325,6 +327,7 @@ private struct FolderTreeRow: View {
 
 private struct VideoTreeRow: View {
     let item: VideoItem
+    var queue: [VideoItem] = []
     @EnvironmentObject private var player: PlayerController
 
     private var isPlaying: Bool { player.currentItem?.url == item.url }
@@ -340,7 +343,7 @@ private struct VideoTreeRow: View {
                 .lineLimit(1)
         }
         .contentShape(Rectangle())
-        .onTapGesture { player.play(item) }
+        .onTapGesture { player.play(item, queue: queue) }
     }
 }
 
@@ -454,7 +457,7 @@ struct VideoListView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(visibleItems) { item in
-                            VideoRow(item: item)
+                            VideoRow(item: item, queue: visibleItems)
                                 .contextMenu {
                                     if let onDelete {
                                         Button("删除", role: .destructive) { onDelete(item) }
@@ -499,6 +502,7 @@ struct VideoListView: View {
 
 struct VideoRow: View {
     let item: VideoItem
+    var queue: [VideoItem] = []
     @EnvironmentObject private var player: PlayerController
     @State private var hover = false
 
@@ -547,7 +551,7 @@ struct VideoRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hover = $0 }
-        .onTapGesture { player.play(item) }
+        .onTapGesture { player.play(item, queue: queue) }
     }
 }
 
@@ -671,7 +675,7 @@ private struct DirectoryView: View {
                     // 最后一层的视频用海报墙
                     if !videos.isEmpty {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 16)], spacing: 22) {
-                            ForEach(videos) { PosterCell(item: $0) }
+                            ForEach(videos) { PosterCell(item: $0, queue: videos) }
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 14)
@@ -847,7 +851,7 @@ struct VideoGrid: View {
         let content = ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 260), spacing: 20)], spacing: 26) {
                 ForEach(items) { item in
-                    PosterCell(item: item)
+                    PosterCell(item: item, queue: items)
                 }
             }
             .padding(28)
@@ -874,6 +878,7 @@ struct VideoGrid: View {
 
 struct PosterCell: View {
     let item: VideoItem
+    var queue: [VideoItem] = []
     @EnvironmentObject private var player: PlayerController
     @State private var hover = false
 
@@ -904,7 +909,7 @@ struct PosterCell: View {
                     }
                 }
                 .onHover { hover = $0 }
-                .onTapGesture { player.play(item) }
+                .onTapGesture { player.play(item, queue: queue) }
                 .shadow(color: .black.opacity(hover ? 0.5 : 0.25), radius: hover ? 14 : 6, y: 5)
                 .scaleEffect(hover ? 1.025 : 1)
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: hover)
