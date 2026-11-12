@@ -12,6 +12,8 @@ final class PlayerController: ObservableObject {
     @Published var errorMessage: String?
     @Published var osdMessage: String?
     @Published var currentTime: Double = 0
+    /// 最近一次 seek 的目标位置：远端视频缓冲完成前，进度条停在这里（避免回跳）
+    @Published var seekTarget: Double? = nil
     @Published var duration: Double = 0
     @Published var volume: Float {
         didSet {
@@ -69,6 +71,7 @@ final class PlayerController: ObservableObject {
         currentItem = item
         duration = item.duration
         currentTime = item.progress
+        seekTarget = nil
         errorMessage = nil
         osdMessage = nil
         externalCues = []
@@ -137,6 +140,7 @@ final class PlayerController: ObservableObject {
         player.seek(to: CMTime(seconds: clamped, preferredTimescale: 600),
                     toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = clamped
+        seekTarget = clamped
         if !externalCues.isEmpty { updateCue() }
         bumpInteraction()
     }
@@ -238,7 +242,17 @@ final class PlayerController: ObservableObject {
     // MARK: - 内部
 
     private func handleTime(_ seconds: Double) {
-        if seconds.isFinite && seconds > 0 { currentTime = seconds }
+        if seconds.isFinite && seconds > 0 {
+            if let target = seekTarget {
+                // seek 缓冲完成（真实时间追上目标位置）后切回真实时间显示
+                if abs(seconds - target) < 2 {
+                    seekTarget = nil
+                    currentTime = seconds
+                }
+            } else {
+                currentTime = seconds
+            }
+        }
         if !externalCues.isEmpty { updateCue() }
         if let url = currentItem?.url, Date().timeIntervalSince(lastSaveTime) > 5 {
             lastSaveTime = Date()

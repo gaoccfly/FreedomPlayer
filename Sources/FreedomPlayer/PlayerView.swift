@@ -429,7 +429,8 @@ private struct SeekSlider: View {
     @State private var dragging = false
     @State private var dragValue: Double = 0
 
-    private var value: Double { dragging ? dragValue : player.currentTime }
+    /// 拖动中显示拖动位置；seek 缓冲未完成前停在目标位置，完成后跟随真实时间
+    private var value: Double { dragging ? dragValue : (player.seekTarget ?? player.currentTime) }
 
     var body: some View {
         GeometryReader { geo in
