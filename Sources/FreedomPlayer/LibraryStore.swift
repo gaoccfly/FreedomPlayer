@@ -261,7 +261,7 @@ final class LibraryStore: ObservableObject {
 
     // MARK: - 观看进度
 
-    func updateProgress(url: URL, seconds: Double, duration: Double) {
+    func updateProgress(url: URL, seconds: Double, duration: Double, customName: String? = nil) {
         func apply(_ index: Int, in array: inout [VideoItem]) {
             array[index].progress = seconds
             if duration > 0 { array[index].duration = duration }
@@ -285,10 +285,11 @@ final class LibraryStore: ObservableObject {
             entry.lastPlayed = Date()
             historyItems.insert(entry, at: 0)
         } else {
-            // 独立播放（未收藏、未入库）：也记入历史
+            // 独立播放（未收藏、未入库）：也记入历史，带上用户在弹窗里设置的名称
             let entry = VideoItem(url: url, isOnline: !url.isFileURL, addedAt: Date(),
                                   duration: duration > 0 ? duration : 0,
-                                  progress: seconds, lastPlayed: Date())
+                                  progress: seconds, lastPlayed: Date(),
+                                  customName: customName)
             historyItems.insert(entry, at: 0)
         }
         progressDirty = true

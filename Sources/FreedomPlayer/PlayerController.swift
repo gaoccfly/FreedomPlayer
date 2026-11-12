@@ -94,7 +94,8 @@ final class PlayerController: ObservableObject {
                     let d = pi.duration.seconds
                     if d.isFinite && d > 0 {
                         self.duration = d
-                        self.store?.updateProgress(url: self.currentItem?.url ?? item.url, seconds: self.currentTime, duration: d)
+                        self.store?.updateProgress(url: self.currentItem?.url ?? item.url, seconds: self.currentTime,
+                                                   duration: d, customName: self.currentItem?.customName)
                     }
                     await self.loadMediaOptions()
                 } else if pi.status == .failed {
@@ -241,7 +242,8 @@ final class PlayerController: ObservableObject {
         if !externalCues.isEmpty { updateCue() }
         if let url = currentItem?.url, Date().timeIntervalSince(lastSaveTime) > 5 {
             lastSaveTime = Date()
-            store?.updateProgress(url: url, seconds: currentTime, duration: duration)
+            store?.updateProgress(url: url, seconds: currentTime, duration: duration,
+                                  customName: currentItem?.customName)
             store?.flush()
         }
     }
@@ -253,7 +255,8 @@ final class PlayerController: ObservableObject {
 
     private func saveProgress() {
         guard let url = currentItem?.url else { return }
-        store?.updateProgress(url: url, seconds: currentTime, duration: duration)
+        store?.updateProgress(url: url, seconds: currentTime, duration: duration,
+                              customName: currentItem?.customName)
         store?.flush()
     }
 
